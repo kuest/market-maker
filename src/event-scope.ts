@@ -19,11 +19,20 @@ export async function conditionIdsFromSiteConfig(
   maxPages: number,
 ): Promise<Set<string>> {
   const siteUrl = await siteUrlFromConfig(SITE_CONFIG_PATH);
-  const events = await fetchSiteEvents(siteUrl, maxPages);
+  return conditionIdsFromEvents(await fetchSiteEvents(siteUrl, maxPages), eventSlug);
+}
+
+export async function siteConditionIds(siteUrl: string): Promise<Set<string>> {
+  const origin = siteUrl.startsWith("http://") || siteUrl.startsWith("https://")
+    ? siteUrl : `https://${siteUrl}`;
+  return conditionIdsFromEvents(await fetchSiteEvents(origin, 50));
+}
+
+function conditionIdsFromEvents(events: JsonRecord[], eventSlug?: string): Set<string> {
   const conditionIds = new Set<string>();
 
   for (const event of events) {
-    if (event.slug !== eventSlug || !Array.isArray(event.markets)) {
+    if ((eventSlug !== undefined && event.slug !== eventSlug) || !Array.isArray(event.markets)) {
       continue;
     }
     for (const market of event.markets) {
@@ -32,7 +41,7 @@ export async function conditionIdsFromSiteConfig(
       }
       const conditionId = conditionIdFromMarket(market);
       if (conditionId) {
-        conditionIds.add(conditionId);
+        conditionIds.add(conditionId.toLowerCase());
       }
     }
   }

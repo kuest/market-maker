@@ -1,6 +1,5 @@
 <h1 align="center">
-  <img src="https://github.com/user-attachments/assets/0cc687fb-89c4-43fa-a056-d89c307215ad" alt="Kuest" height="96" /><br/>
-  Kuest TypeScript Market Maker Example
+  TypeScript Market Maker Example
 </h1>
 
 ## What It Does
@@ -24,13 +23,13 @@ maximum, and only tops up when open size falls below the band minimum.
 pnpm install
 ```
 
-The customized TypeScript CLOB SDK must be vendored at `vendor/clob-client`. The
+An operator ZIP vendors the unified TypeScript SDK at `vendor/ts-sdk`. The
 directory should look like this:
 
 ```text
 vendor/
-  clob-client/
-    src/
+  ts-sdk/
+    packages/
     package.json
     .sdk/
 ```
@@ -47,7 +46,7 @@ To keep the bot scoped to one event, pass the event slug:
 pnpm run start -- --event-slug lowest-temperature-in-nyc-on-june-24-2026
 ```
 
-Event mode reads `.sdk/site-config.json`, uses the configured Kuest site API,
+Event mode reads `.sdk/site-config.json`, uses the configured site API,
 and resolves the event's CLOB condition ids from that fork.
 
 ## Live Trading
@@ -60,8 +59,7 @@ pnpm run start -- --live
 
 Live mode requires `KUEST_PRIVATE_KEY`, `KUEST_DEPOSIT_WALLET`, and
 `KUEST_CHAIN_ID`. You can also pass them as `--private-key`,
-`--deposit-wallet`, and `--chain-id`. Use chain id `137` for Polygon or `80002`
-for Amoy.
+`--deposit-wallet`, and `--chain-id`. Use chain id `137` for Polygon.
 
 By default live mode only posts buy orders.
 
@@ -116,8 +114,7 @@ top-of-book depth before quoting.
 
   --clob-host / KUEST_CLOB_HOST
   Default: https://clob.kuest.com
-  The CLOB API endpoint. Necessary because market discovery, order books,
-  auth, signing metadata, and order posting all go through the CLOB API.
+  The CLOB API endpoint for order books, auth, signing metadata, and orders.
   Keep configurable for prod/staging/forks.
 
   --live / MARKET_MAKER_LIVE
@@ -133,12 +130,12 @@ top-of-book depth before quoting.
   --deposit-wallet / KUEST_DEPOSIT_WALLET
   Required only with --live.
   The deposit wallet/funder address whose balances are used. Necessary
-  because Kuest’s order flow uses deposit-wallet signature type, and the
+  because deposit-wallet signing uses that wallet's balances, and the
   exchange checks this wallet’s USDC/outcome-token balances.
 
   --chain-id / KUEST_CHAIN_ID
   Required only with --live.
-  Allowed: 137 Polygon, 80002 Amoy. Necessary so signatures are made for
+  Allowed: 137 Polygon. Necessary so signatures are made for
   the correct chain and verifying contracts.
 
   --discovery / MARKET_MAKER_DISCOVERY
@@ -151,7 +148,7 @@ top-of-book depth before quoting.
   --event-slug / MARKET_MAKER_EVENT_SLUG
   Optional.
   If set, the bot ignores normal discovery and keeps trading only the markets
-  under this event slug. It resolves markets from the Kuest fork configured in
+  under this event slug. It resolves markets from the site configured in
   .sdk/site-config.json.
 
   --max-markets / MARKET_MAKER_MAX_MARKETS

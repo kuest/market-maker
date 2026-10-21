@@ -1,5 +1,10 @@
 packages:
-  - vendor/clob-client
+  - vendor/ts-sdk/packages/*
 
 allowBuilds:
   esbuild: true
+
+minimumReleaseAgeExclude:
+  - '@kuest/bindings@0.13.1'
+  - '@kuest/sdk@0.13.1'
+  - '@kuest/types@0.2.1'

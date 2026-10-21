@@ -6,17 +6,17 @@
   "description": "Simple TypeScript market maker example for prediction markets",
   "license": "MIT",
   "engines": {
-    "node": ">=22.22.1"
+    "node": ">=24"
   },
   "packageManager": "pnpm@11.7.0",
   "scripts": {
-    "build:sdk": "pnpm --dir vendor/clob-client build",
+    "build:sdk": "node scripts/build-vendored-sdk.mjs",
     "start": "pnpm build:sdk && tsx src/main.ts",
     "typecheck": "pnpm build:sdk && tsc --noEmit",
     "test": "pnpm build:sdk && vitest run"
   },
   "dependencies": {
-    "ethers": "^6.16.0"
+    "@kuest/sdk": "0.13.1"
   },
   "devDependencies": {
     "@types/node": "^24.12.4",

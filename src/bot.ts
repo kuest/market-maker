@@ -1,21 +1,17 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { ethers } from "ethers";
-import { ClobClient } from "../vendor/clob-client/dist/client.js";
-import { END_CURSOR, INITIAL_CURSOR } from "../vendor/clob-client/dist/constants.js";
-import { SignatureType } from "../vendor/clob-client/dist/order-utils/model/signature-types.model.js";
 import {
   AssetType,
-  type ApiKeyCreds,
-  Chain,
   type OpenOrder,
   type OrderBookSummary,
   type OrderResponse,
   type OrderSummary,
-  OrderType,
   type PaginationPayload,
   Side,
   type Trade,
-} from "../vendor/clob-client/dist/types.js";
+  UnifiedMarketClient as ClobClient,
+} from "./sdk-adapter.js";
+const INITIAL_CURSOR: string | undefined = undefined;
+const END_CURSOR = "LTE=";
 import {
   bandMarginTicks,
   bandSizes,
@@ -543,10 +539,7 @@ export async function run(config: Config): Promise<void> {
     return;
   }
 
-  const publicClient = new ClobClient(
-    config.clobHost,
-    (config.chainId ?? Chain.AMOY) as Chain,
-  );
+  const publicClient = ClobClient.public(config);
   const liveClient = config.live ? await authenticate(config) : undefined;
 
   if (config.cancelAll) {
@@ -810,29 +803,7 @@ function replaceManagedScope(
 }
 
 async function authenticate(config: Config): Promise<ClobClient> {
-  const wallet = new ethers.Wallet(config.privateKey ?? "");
-  const chainId = config.chainId as Chain;
-  const l1Client = new ClobClient(
-    config.clobHost,
-    chainId,
-    wallet,
-    undefined,
-    SignatureType.DEPOSIT_WALLET,
-    config.depositWallet,
-    undefined,
-    true,
-  );
-  const creds: ApiKeyCreds = await l1Client.createOrDeriveApiKey();
-  return new ClobClient(
-    config.clobHost,
-    chainId,
-    wallet,
-    creds,
-    SignatureType.DEPOSIT_WALLET,
-    config.depositWallet,
-    undefined,
-    true,
-  );
+  return ClobClient.secure(config);
 }
 
 export async function discoverMarkets(
@@ -842,9 +813,7 @@ export async function discoverMarkets(
 ): Promise<Market[]> {
   if (mode === "auto") {
     const sampling = await fetchMarketPages(client, "sampling", maxPages);
-    return sampling.length > 0
-      ? sampling
-      : fetchMarketPages(client, "site", maxPages);
+    return sampling.length > 0 ? sampling : fetchMarketPages(client, "site", maxPages);
   }
 
   return fetchMarketPages(client, mode, maxPages);
@@ -876,16 +845,14 @@ export async function fetchMarketPages(
 
   for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
     const previousCursor = cursor;
-    const page: PaginationPayload =
-      mode === "sampling"
-        ? await client.getSamplingMarkets(cursor)
-        : await client.getMarkets(cursor);
+    const page: PaginationPayload = mode === "sampling"
+      ? await client.getSamplingMarkets(cursor) : await client.getMarkets(cursor);
 
     if (Array.isArray(page.data)) {
       markets.push(...page.data.filter(isMarket));
     }
 
-    cursor = String(page.next_cursor || END_CURSOR);
+    cursor = page.next_cursor || END_CURSOR;
     if (cursor === END_CURSOR || cursor === previousCursor) {
       break;
     }
@@ -1825,7 +1792,7 @@ async function reconcileQuotePlan(
   for (const plannedOrder of plannedOrders) {
     responses.push([
       plannedOrder,
-      await client.postOrder(plannedOrder.order, OrderType.GTC, false, config.postOnly),
+      await client.postOrder(plannedOrder.order),
     ]);
   }
   printPostResponses(plan, responses);

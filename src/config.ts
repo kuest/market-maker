@@ -6,6 +6,10 @@ export type QuoteSides = "buy" | "sell" | "both";
 
 export interface Config {
   clobHost: string;
+  relayerHost?: string;
+  gammaHost?: string;
+  dataHost?: string;
+  rpcUrl?: string;
   live: boolean;
   privateKey?: string;
   depositWallet?: string;
@@ -61,10 +65,14 @@ export const HELP_TEXT = `Usage: market-maker [options]
 
 Options:
   --clob-host <url>                 KUEST_CLOB_HOST, default https://clob.kuest.com
+  --relayer-host <url>              KUEST_RELAYER_HOST, default https://relayer.kuest.com
+  --gamma-host <url>                KUEST_GAMMA_HOST, default https://gamma-api.kuest.com
+  --data-host <url>                 KUEST_DATA_HOST, default https://data-api.kuest.com
+  --rpc-url <url>                   KUEST_RPC_URL, default https://polygon.drpc.org
   --live / --no-live                MARKET_MAKER_LIVE, default false
   --private-key <key>               KUEST_PRIVATE_KEY, required with --live
   --deposit-wallet <address>        KUEST_DEPOSIT_WALLET, required with --live
-  --chain-id <id>                   KUEST_CHAIN_ID, 137 Polygon or 80002 Amoy
+  --chain-id <id>                   KUEST_CHAIN_ID, 137 Polygon only
   --discovery <mode>                MARKET_MAKER_DISCOVERY, auto | sampling | site
   --event-slug <slug>               MARKET_MAKER_EVENT_SLUG
   --max-markets <n>                 MARKET_MAKER_MAX_MARKETS, default 3
@@ -181,6 +189,10 @@ export function parseConfig(
       "KUEST_CLOB_HOST",
       "https://clob.kuest.com",
     ),
+    relayerHost: stringArg(args, env, "relayer-host", "KUEST_RELAYER_HOST", "https://relayer.kuest.com"),
+    gammaHost: stringArg(args, env, "gamma-host", "KUEST_GAMMA_HOST", "https://gamma-api.kuest.com"),
+    dataHost: stringArg(args, env, "data-host", "KUEST_DATA_HOST", "https://data-api.kuest.com"),
+    rpcUrl: stringArg(args, env, "rpc-url", "KUEST_RPC_URL", "https://polygon.drpc.org"),
     live: booleanArg(args, env, "live", "MARKET_MAKER_LIVE", false),
     privateKey: optionalStringArg(
       args,
@@ -779,9 +791,9 @@ function validateConfig(config: Config): void {
       "--live requires KUEST_CHAIN_ID or --chain-id; use 137 for Polygon or 80002 for Amoy",
     );
   }
-  if (config.chainId !== POLYGON && config.chainId !== AMOY) {
+  if (config.chainId !== POLYGON) {
     throw new Error(
-      `unsupported chain id ${config.chainId}; SDK supports ${POLYGON} and ${AMOY}`,
+      `unsupported chain id ${config.chainId}; unified SDK supports ${POLYGON} only`,
     );
   }
 }

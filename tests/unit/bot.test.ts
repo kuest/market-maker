@@ -31,7 +31,7 @@ import {
 } from "../../src/bot.js";
 import type { Config } from "../../src/config.js";
 import type { FillRecord } from "../../src/state.js";
-import { Side, type OpenOrder, type OrderBookSummary } from "../../vendor/clob-client/dist/types.js";
+import { Side, type OpenOrder, type OrderBookSummary } from "../../src/sdk-adapter.js";
 
 describe("bot feature #1", () => {
     it("marks event candidates as already scoped instead of new", () => {

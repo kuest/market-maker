@@ -1,6 +1,6 @@
 {
     "include": ["src/**/*", "tests/**/*", "vitest.config.ts"],
-    "exclude": ["node_modules", "vendor/clob-client/node_modules"],
+    "exclude": ["node_modules", "vendor/ts-sdk/node_modules"],
     "compilerOptions": {
         "module": "nodenext",
         "moduleResolution": "nodenext",

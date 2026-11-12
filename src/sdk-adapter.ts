@@ -145,9 +145,9 @@ export class UnifiedMarketClient {
     };
   }
 
-  async getOpenOrders({ asset_id }: { asset_id?: string }): Promise<OpenOrder[]> {
+  async getOpenOrders({ asset_id, market }: { asset_id: string; market: string }): Promise<OpenOrder[]> {
     const result: OpenOrder[] = [];
-    for await (const page of this.authenticated().listOpenOrders({ assetId: asset_id })) {
+    for await (const page of this.authenticated().listOpenOrders({ assetId: asset_id, market })) {
       for (const order of page.items) result.push({
         id: order.id, status: order.status, owner: order.owner,
         maker_address: order.makerAddress, market: order.conditionId,

@@ -8,6 +8,7 @@ import {
     bandMissingSize,
     buildQuotePlan,
     cancelScopeOrders,
+    cancelOpenOrdersForMarkets,
     cancellableOrders,
     isOpenOrder,
     inventoryAdjustedBuySize,
@@ -296,7 +297,8 @@ describe("bot feature #1", () => {
             getSamplingMarkets: async () => ({ data: [market("market")], next_cursor: "LTE=" }),
         };
         const liveClient = {
-            getOpenOrders: async (params: { asset_id: string }) => {
+            getOpenOrders: async (params: { asset_id: string; market: string }) => {
+                expect(params.market).toBe("market");
                 checkedTokenIds.push(params.asset_id);
                 return [];
             },
@@ -310,6 +312,32 @@ describe("bot feature #1", () => {
         );
 
         expect(checkedTokenIds).toEqual(["yes"]);
+    });
+
+    it("carries condition IDs through cancellation and verification", async () => {
+        const requests: Array<{ asset_id: string; market: string }> = [];
+        let canceled = false;
+        const client = {
+            getOpenOrders: async (params: { asset_id: string; market: string }) => {
+                requests.push(params);
+                return canceled ? [] : [{ id: "order-1", status: "LIVE", original_size: "10", size_matched: "0" }];
+            },
+            cancelOrders: async () => {
+                canceled = true;
+                return { canceled: ["order-1"], not_canceled: [] };
+            },
+        };
+        await cancelOpenOrdersForMarkets(client as never, [{ ...market("slug"), condition_id: "condition-1" }]);
+        expect(requests).toEqual([
+            { asset_id: "yes", market: "condition-1" },
+            { asset_id: "yes", market: "condition-1" },
+        ]);
+    });
+
+    it("rejects a missing condition ID before cancellation", async () => {
+        const { condition_id: _conditionId, ...withoutCondition } = market("slug");
+        await expect(cancelOpenOrdersForMarkets({} as never, [withoutCondition]))
+            .rejects.toThrow("Market is missing its condition ID");
     });
 
     it("rejects missing two-sided liquidity", () => {
@@ -359,6 +387,7 @@ describe("bot feature #1", () => {
 function market(slug: string): Record<string, unknown> {
     return {
         slug,
+        condition_id: slug,
         question: "Question?",
         enable_order_book: true,
         active: true,
@@ -587,6 +616,7 @@ describe("market loss guard", () => {
 
 function plan(): QuotePlan {
     return {
+        conditionId: "market",
         marketKey: "market",
         marketSlug: "market",
         question: "Question?",

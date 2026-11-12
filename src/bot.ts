@@ -53,6 +53,7 @@ interface MarketCandidate {
 }
 
 export interface QuotePlan {
+  conditionId: string;
   marketKey: string;
   marketSlug: string;
   question: string;
@@ -78,6 +79,7 @@ export interface QuoteBand {
 }
 
 export interface TokenQuote {
+  conditionId: string;
   tokenId: string;
   outcome: string;
   fairPrice: number;
@@ -139,7 +141,7 @@ export class LiveMarketState {
         costBasis,
         positionReconcileError,
         balanceFetchedAt: nowMs(),
-        openOrders: await openOrdersForToken(client, tokenQuote.tokenId),
+        openOrders: await openOrdersForToken(client, tokenQuote.tokenId, tokenQuote.conditionId),
         openOrdersFetchedAt: nowMs(),
       });
     }
@@ -929,6 +931,12 @@ export function hasRewards(market: Market): boolean {
   return (Array.isArray(rates) && rates.length > 0) || minSize > 0;
 }
 
+function requiredConditionId(market: Market): string {
+  const conditionId = conditionIdFromMarket(market);
+  if (!conditionId) throw new Error("Market is missing its condition ID");
+  return conditionId;
+}
+
 export function marketKey(market: Market): string {
   return conditionIdFromMarket(market) ?? marketSlug(market);
 }
@@ -1168,6 +1176,7 @@ function buildTokenQuote(
     ? undefined
     : buildQuotePlan(market, token, book, config, bookFetchedAt);
   return {
+    conditionId: requiredConditionId(market),
     tokenId: tokenIdFromToken(token),
     outcome: tokenOutcome(token),
     fairPrice: fair,
@@ -1250,6 +1259,7 @@ export function buildQuotePlan(
   }
 
   return {
+    conditionId: requiredConditionId(market),
     marketKey: marketKey(market),
     marketSlug: marketSlug(market),
     question: marketQuestion(market),
@@ -1580,7 +1590,7 @@ async function reconcileQuotePlan(
       return;
     }
     const canceledIds = new Set(ordersToCancel.map((order) => order.id));
-    openOrders = await openOrdersForToken(client, plan.tokenId);
+    openOrders = await openOrdersForToken(client, plan.tokenId, plan.conditionId);
     marketState.replaceOpenOrders(plan.tokenId, openOrders);
     if (openOrders.some((order) => canceledIds.has(order.id))) {
       console.log(
@@ -1820,7 +1830,7 @@ async function applyPostResponses(
   }
 
   if (hasFailedResponse) {
-    const refreshedOrders = await openOrdersForToken(client, plan.tokenId);
+    const refreshedOrders = await openOrdersForToken(client, plan.tokenId, plan.conditionId);
     marketState.removePendingOrdersNowOpen(refreshedOrders);
     marketState.replaceOpenOrders(plan.tokenId, refreshedOrders);
     console.log(
@@ -1931,8 +1941,9 @@ function nowMs(): number {
 async function openOrdersForToken(
   client: ClobClient,
   tokenId: string,
+  conditionId: string,
 ): Promise<OpenOrder[]> {
-  const orders = await client.getOpenOrders({ asset_id: tokenId });
+  const orders = await client.getOpenOrders({ asset_id: tokenId, market: conditionId });
   return orders.filter(isOpenOrder);
 }
 
@@ -2093,7 +2104,13 @@ export async function cancelOpenOrdersForMarkets(
   client: ClobClient,
   markets: Market[],
 ): Promise<CancelOpenOrdersSummary> {
-  const tokenIds = managedTokenIds(markets);
+  const tokenMarkets = new Map<string, string>();
+  for (const market of markets) {
+    for (const tokenId of managedTokenIds([market])) {
+      if (!tokenMarkets.has(tokenId)) tokenMarkets.set(tokenId, requiredConditionId(market));
+    }
+  }
+  const tokenIds = [...tokenMarkets.keys()];
   const summary: CancelOpenOrdersSummary = {
     marketsChecked: markets.length,
     tokensChecked: tokenIds.length,
@@ -2103,8 +2120,8 @@ export async function cancelOpenOrdersForMarkets(
     remainingOpen: 0,
   };
 
-  for (const tokenId of tokenIds) {
-    const openOrders = await openOrdersForToken(client, tokenId);
+  for (const [tokenId, conditionId] of tokenMarkets) {
+    const openOrders = await openOrdersForToken(client, tokenId, conditionId);
     if (openOrders.length === 0) {
       continue;
     }
@@ -2127,7 +2144,7 @@ export async function cancelOpenOrdersForMarkets(
 
   if (summary.ordersFound > 0) {
     for (let attempt = 1; attempt <= CANCEL_VERIFY_ATTEMPTS; attempt += 1) {
-      summary.remainingOpen = await remainingOpenOrdersForTokens(client, tokenIds);
+      summary.remainingOpen = await remainingOpenOrdersForTokens(client, tokenMarkets);
       if (summary.remainingOpen === 0) {
         break;
       }
@@ -2168,7 +2185,7 @@ async function cancelRiskIncreasingOrders(
     `risk breach cancel ${plan.marketSlug} ${plan.outcome}: ` +
       `canceled=${canceled.length} not_canceled=${notCanceled.length}`,
   );
-  return openOrdersForToken(client, plan.tokenId);
+  return openOrdersForToken(client, plan.tokenId, plan.conditionId);
 }
 
 async function cancelRiskIncreasingMarketOrders(
@@ -2241,10 +2258,11 @@ export function managedTokenIds(markets: Market[]): string[] {
 
 async function remainingOpenOrdersForTokens(
   client: ClobClient,
-  tokenIds: string[],
+  tokenMarkets: Map<string, string>,
 ): Promise<number> {
   const counts = await Promise.all(
-    tokenIds.map(async (tokenId) => (await openOrdersForToken(client, tokenId)).length),
+    [...tokenMarkets].map(async ([tokenId, conditionId]) =>
+      (await openOrdersForToken(client, tokenId, conditionId)).length),
   );
   return counts.reduce((total, count) => total + count, 0);
 }

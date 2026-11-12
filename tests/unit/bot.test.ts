@@ -294,11 +294,14 @@ describe("bot feature #1", () => {
     it("falls back to discovered scope when managed cancel scope is empty", async () => {
         const checkedTokenIds: string[] = [];
         const publicClient = {
-            getSamplingMarkets: async () => ({ data: [market("market")], next_cursor: "LTE=" }),
+            getSamplingMarkets: async () => ({
+                data: [{ ...market("market-slug"), condition_id: "condition-1" }],
+                next_cursor: "LTE=",
+            }),
         };
         const liveClient = {
             getOpenOrders: async (params: { asset_id: string; market: string }) => {
-                expect(params.market).toBe("market");
+                expect(params.market).toBe("condition-1");
                 checkedTokenIds.push(params.asset_id);
                 return [];
             },

@@ -634,7 +634,6 @@ function openOrder(
         original_size: size,
         size_matched: sizeMatched,
         price,
-        associate_trades: [],
         outcome: "Yes",
         created_at: createdAt,
         expiration: "0",

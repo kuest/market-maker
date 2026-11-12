@@ -34,7 +34,7 @@ export type OrderBookSummary = {
 export type OpenOrder = {
   id: string; status: string; owner: string; maker_address: string;
   market: string; asset_id: string; side: string; original_size: string;
-  size_matched: string; price: string; associate_trades: string[];
+  size_matched: string; price: string;
   outcome: string; created_at: number; expiration: string; order_type: string;
 };
 export type Trade = {
@@ -153,7 +153,7 @@ export class UnifiedMarketClient {
         maker_address: order.makerAddress, market: order.conditionId,
         asset_id: order.assetId, side: order.side, original_size: order.originalSize,
         size_matched: order.sizeMatched, price: order.price,
-        associate_trades: order.associateTrades, outcome: order.outcome,
+        outcome: order.outcome,
         created_at: Date.parse(order.createdAt) / 1000,
         expiration: order.expiresAt ?? "", order_type: order.orderType,
       });

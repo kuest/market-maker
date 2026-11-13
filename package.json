@@ -16,7 +16,7 @@
     "test": "pnpm build:sdk && vitest run"
   },
   "dependencies": {
-    "@kuest/sdk": "0.13.1"
+    "@kuest/sdk": "0.14.1"
   },
   "devDependencies": {
     "@types/node": "^24.12.4",

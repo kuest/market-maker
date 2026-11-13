@@ -339,8 +339,15 @@ describe("bot feature #1", () => {
     });
 
     it("rejects unpriced orders before risk accounting", async () => {
-        const client = { getOpenOrders: async () => [{ id: "order-1", status: "LIVE", price: null }] };
+        const requests: Array<{ asset_id: string; market: string }> = [];
+        const client = {
+            getOpenOrders: async (params: { asset_id: string; market: string }) => {
+                requests.push(params);
+                return [{ id: "order-1", status: "LIVE", price: null }];
+            },
+        };
         await expect(openOrdersForToken(client as never, "yes", "condition-1")).rejects.toThrow(/no limit price/);
+        expect(requests).toEqual([{ asset_id: "yes", market: "condition-1" }]);
     });
 
     it("rejects a missing condition ID before cancellation", async () => {

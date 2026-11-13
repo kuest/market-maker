@@ -32,11 +32,12 @@ export type OrderBookSummary = {
   hash: string;
 };
 export type OpenOrder = {
-  id: string; status: string; owner: string; maker_address: string;
+  id: string; status: string; owner: string | null; maker_address: string;
   market: string; asset_id: string; side: string; original_size: string;
-  size_matched: string; price: string; associate_trades: string[];
-  outcome: string; created_at: number; expiration: string; order_type: string;
+  size_matched: string; price: string;
+  outcome: string | null; created_at: number; expiration: string; order_type: string;
 };
+export type QueriedOpenOrder = Omit<OpenOrder, "price"> & { price: string | null };
 export type Trade = {
   id: string; market: string; asset_id: string; side: Side;
   size: string; price: string; status: string; match_time: string;
@@ -145,18 +146,20 @@ export class UnifiedMarketClient {
     };
   }
 
-  async getOpenOrders({ asset_id }: { asset_id?: string }): Promise<OpenOrder[]> {
-    const result: OpenOrder[] = [];
-    for await (const page of this.authenticated().listOpenOrders({ assetId: asset_id })) {
-      for (const order of page.items) result.push({
+  async getOpenOrders({ asset_id, market }: { asset_id: string; market: string }): Promise<QueriedOpenOrder[]> {
+    const result: QueriedOpenOrder[] = [];
+    for await (const page of this.authenticated().listOpenOrders({ assetId: asset_id, market })) {
+      for (const order of page.items) {
+        result.push({
         id: order.id, status: order.status, owner: order.owner,
         maker_address: order.makerAddress, market: order.conditionId,
         asset_id: order.assetId, side: order.side, original_size: order.originalSize,
         size_matched: order.sizeMatched, price: order.price,
-        associate_trades: order.associateTrades, outcome: order.outcome,
+        outcome: order.outcome,
         created_at: Date.parse(order.createdAt) / 1000,
         expiration: order.expiresAt ?? "", order_type: order.orderType,
-      });
+        });
+      }
     }
     return result;
   }

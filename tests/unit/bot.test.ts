@@ -11,6 +11,7 @@ import {
     cancelOpenOrdersForMarkets,
     cancellableOrders,
     isOpenOrder,
+    openOrdersForToken,
     inventoryAdjustedBuySize,
     liquidityRejectReason,
     managedTokenIds,
@@ -317,13 +318,13 @@ describe("bot feature #1", () => {
         expect(checkedTokenIds).toEqual(["yes"]);
     });
 
-    it("carries condition IDs through cancellation and verification", async () => {
+    it("cancels unpriced orders with scoped filters and verifies their removal", async () => {
         const requests: Array<{ asset_id: string; market: string }> = [];
         let canceled = false;
         const client = {
             getOpenOrders: async (params: { asset_id: string; market: string }) => {
                 requests.push(params);
-                return canceled ? [] : [{ id: "order-1", status: "LIVE", original_size: "10", size_matched: "0" }];
+                return canceled ? [] : [{ id: "order-1", status: "LIVE", original_size: "10", size_matched: "0", price: null }];
             },
             cancelOrders: async () => {
                 canceled = true;
@@ -335,6 +336,11 @@ describe("bot feature #1", () => {
             { asset_id: "yes", market: "condition-1" },
             { asset_id: "yes", market: "condition-1" },
         ]);
+    });
+
+    it("rejects unpriced orders before risk accounting", async () => {
+        const client = { getOpenOrders: async () => [{ id: "order-1", status: "LIVE", price: null }] };
+        await expect(openOrdersForToken(client as never, "yes", "condition-1")).rejects.toThrow(/no limit price/);
     });
 
     it("rejects a missing condition ID before cancellation", async () => {

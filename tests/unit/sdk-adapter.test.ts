@@ -129,7 +129,7 @@ describe("unified SDK boundary", () => {
     expect(await secure.cancelOrders(["one", "two"])).toEqual({ canceled: ["one"], not_canceled: ["two"] });
   });
 
-  it("preserves nullable metadata and requires a priced open order", async () => {
+  it("preserves nullable metadata and prices for cancellation", async () => {
     const order = { id: "one", price: "0.5", owner: null, outcome: null, createdAt: "2026-11-13T00:00:00Z" };
     const listOpenOrders = vi.fn().mockImplementation(async function* () { yield { items: [order] }; });
     mocks.secureClient.listOpenOrders = listOpenOrders;
@@ -137,7 +137,7 @@ describe("unified SDK boundary", () => {
     expect(await secure.getOpenOrders({ asset_id: "123", market: "condition" })).toEqual([expect.objectContaining({ owner: null, outcome: null, price: "0.5" })]);
     expect(listOpenOrders).toHaveBeenCalledWith({ assetId: "123", market: "condition" });
     mocks.secureClient.listOpenOrders = async function* () { yield { items: [{ ...order, price: null }] }; };
-    await expect(secure.getOpenOrders({ asset_id: "123", market: "condition" })).rejects.toThrow(/no limit price/);
+    expect(await secure.getOpenOrders({ asset_id: "123", market: "condition" })).toEqual([expect.objectContaining({ price: null })]);
   });
 
   it("rejects undeployed wallets before SDK authentication can deploy one", async () => {

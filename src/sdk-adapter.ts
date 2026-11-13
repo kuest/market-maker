@@ -37,6 +37,7 @@ export type OpenOrder = {
   size_matched: string; price: string;
   outcome: string | null; created_at: number; expiration: string; order_type: string;
 };
+export type QueriedOpenOrder = Omit<OpenOrder, "price"> & { price: string | null };
 export type Trade = {
   id: string; market: string; asset_id: string; side: Side;
   size: string; price: string; status: string; match_time: string;
@@ -145,11 +146,10 @@ export class UnifiedMarketClient {
     };
   }
 
-  async getOpenOrders({ asset_id, market }: { asset_id: string; market: string }): Promise<OpenOrder[]> {
-    const result: OpenOrder[] = [];
+  async getOpenOrders({ asset_id, market }: { asset_id: string; market: string }): Promise<QueriedOpenOrder[]> {
+    const result: QueriedOpenOrder[] = [];
     for await (const page of this.authenticated().listOpenOrders({ assetId: asset_id, market })) {
       for (const order of page.items) {
-        if (order.price == null) throw new Error(`Open order ${order.id} has no limit price; cannot account for its risk`);
         result.push({
         id: order.id, status: order.status, owner: order.owner,
         maker_address: order.makerAddress, market: order.conditionId,

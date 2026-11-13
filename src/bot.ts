@@ -2,6 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import {
   AssetType,
   type OpenOrder,
+  type QueriedOpenOrder,
   type OrderBookSummary,
   type OrderResponse,
   type OrderSummary,
@@ -1938,11 +1939,19 @@ function nowMs(): number {
   return Date.now();
 }
 
-async function openOrdersForToken(
+export async function openOrdersForToken(
   client: ClobClient,
   tokenId: string,
   conditionId: string,
 ): Promise<OpenOrder[]> {
+  const orders = await queriedOpenOrdersForToken(client, tokenId, conditionId);
+  return orders.map((order) => {
+    if (order.price == null) throw new Error(`Open order ${order.id} has no limit price; cannot account for its risk`);
+    return { ...order, price: order.price };
+  });
+}
+
+async function queriedOpenOrdersForToken(client: ClobClient, tokenId: string, conditionId: string): Promise<QueriedOpenOrder[]> {
   const orders = await client.getOpenOrders({ asset_id: tokenId, market: conditionId });
   return orders.filter(isOpenOrder);
 }
@@ -2121,7 +2130,7 @@ export async function cancelOpenOrdersForMarkets(
   };
 
   for (const [tokenId, conditionId] of tokenMarkets) {
-    const openOrders = await openOrdersForToken(client, tokenId, conditionId);
+    const openOrders = await queriedOpenOrdersForToken(client, tokenId, conditionId);
     if (openOrders.length === 0) {
       continue;
     }
@@ -2262,7 +2271,7 @@ async function remainingOpenOrdersForTokens(
 ): Promise<number> {
   const counts = await Promise.all(
     [...tokenMarkets].map(async ([tokenId, conditionId]) =>
-      (await openOrdersForToken(client, tokenId, conditionId)).length),
+      (await queriedOpenOrdersForToken(client, tokenId, conditionId)).length),
   );
   return counts.reduce((total, count) => total + count, 0);
 }
@@ -2598,7 +2607,7 @@ function openOrderRemainingSize(order: OpenOrder): number {
   );
 }
 
-export function isOpenOrder(order: OpenOrder): boolean {
+export function isOpenOrder(order: Pick<OpenOrder, "status">): boolean {
   return ["live", "open", "unmatched", "delayed"].includes(
     order.status.toLowerCase(),
   );

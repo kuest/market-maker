@@ -32,10 +32,10 @@ export type OrderBookSummary = {
   hash: string;
 };
 export type OpenOrder = {
-  id: string; status: string; owner: string; maker_address: string;
+  id: string; status: string; owner: string | null; maker_address: string;
   market: string; asset_id: string; side: string; original_size: string;
   size_matched: string; price: string;
-  outcome: string; created_at: number; expiration: string; order_type: string;
+  outcome: string | null; created_at: number; expiration: string; order_type: string;
 };
 export type Trade = {
   id: string; market: string; asset_id: string; side: Side;
@@ -148,7 +148,9 @@ export class UnifiedMarketClient {
   async getOpenOrders({ asset_id, market }: { asset_id: string; market: string }): Promise<OpenOrder[]> {
     const result: OpenOrder[] = [];
     for await (const page of this.authenticated().listOpenOrders({ assetId: asset_id, market })) {
-      for (const order of page.items) result.push({
+      for (const order of page.items) {
+        if (order.price == null) throw new Error(`Open order ${order.id} has no limit price; cannot account for its risk`);
+        result.push({
         id: order.id, status: order.status, owner: order.owner,
         maker_address: order.makerAddress, market: order.conditionId,
         asset_id: order.assetId, side: order.side, original_size: order.originalSize,
@@ -156,7 +158,8 @@ export class UnifiedMarketClient {
         outcome: order.outcome,
         created_at: Date.parse(order.createdAt) / 1000,
         expiration: order.expiresAt ?? "", order_type: order.orderType,
-      });
+        });
+      }
     }
     return result;
   }
